@@ -66,7 +66,7 @@ if __name__ == "__main__":
     parser.add_argument("--resume", dest='resume', action='store_true', help="load model")
     parser.add_argument("--epoch", type=int, help="model checkpoint epoch")
     parser.add_argument("--path_id", type=str, help="model checkpoint folder id")
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
+    parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate")
     parser.add_argument('--wandb', type=str, default='', help='wandb_id https://wandb.ai/')
     parser.add_argument('--test', dest='test', action='store_true', help="test during train")
     parser.add_argument('--test_lib', dest='test_lib', action='store_true', help="test on lib")
