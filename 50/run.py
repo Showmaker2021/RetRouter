@@ -72,6 +72,7 @@ if __name__ == "__main__":
     parser.add_argument('--test_lib', dest='test_lib', action='store_true', help="test on lib")
     parser.add_argument('--skip', dest='skip', action='store_true', help="every epoch only 3 step")
     parser.add_argument('--test_only', dest='test_only', action='store_true', help="test_only")
+    parser.add_argument('--model_type', type=str, default='cada', choices=['cada', 'retention'], help="model architecture")
     args = parser.parse_args()
     # get time for result log
     args.start_time = time.strftime("%Y-%m%d-%H%M", time.localtime())

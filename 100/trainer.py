@@ -17,7 +17,8 @@ from torch.nn.parallel import DistributedDataParallel
 
 from utils.utils import *
 from utils.functions import *
-from model import VRPModel
+from model import VRPModel as CaDAVRPModel
+from utils.retention_vrp_model import VRPModel as RetentionVRPModel
 from envs.env import MTVRPEnv, get_dataloader
 from envs.transformer import StateAugmentation
 
@@ -56,7 +57,13 @@ class VRPTrainer:
         # cuda
         torch.set_default_tensor_type('torch.cuda.FloatTensor')
         # Main Components
-        self.model = VRPModel(args) # args.log(f'current device:{self.model.device}')
+        model_type = getattr(args, "model_type", "cada")
+        if model_type == "cada":
+            self.model = CaDAVRPModel(args)
+        elif model_type == "retention":
+            self.model = RetentionVRPModel(args)
+        else:
+            raise ValueError(f"Unknown model_type: {model_type}")
         cal_model_size(self.model, args) #
         # exit(0)
         self.env = MTVRPEnv(**args.env)
