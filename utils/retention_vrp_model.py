@@ -82,21 +82,22 @@ class ConstraintStateEncoder(nn.Module):
         return self.net(p_s_tag[:, :6])
 
 
-class SinusoidalPositionEncoding(nn.Module):
+class GeoPositionEncoding(nn.Module):
     def __init__(self, embedding_dim):
         super().__init__()
-        self.embedding_dim = embedding_dim
-
-    def forward(self, length, device):
-        pos = torch.arange(length, device=device, dtype=torch.float32).unsqueeze(1)
-        div_term = torch.exp(
-            torch.arange(0, self.embedding_dim, 2, device=device, dtype=torch.float32)
-            * (-math.log(10000.0) / self.embedding_dim)
+        self.proj = nn.Sequential(
+            nn.Linear(3, embedding_dim),
+            RMSNorm(embedding_dim),
+            nn.GELU(),
+            linear_layer(embedding_dim, embedding_dim),
         )
-        pe = torch.zeros(length, self.embedding_dim, device=device)
-        pe[:, 0::2] = torch.sin(pos * div_term)
-        pe[:, 1::2] = torch.cos(pos * div_term[: pe[:, 1::2].shape[1]])
-        return pe
+
+    def forward(self, locs):
+        depot = locs[:, :1, :]
+        rel = locs - depot
+        dist = rel.norm(p=2, dim=-1, keepdim=True)
+        geo = torch.cat((locs, dist), dim=-1)
+        return self.proj(geo)
 
 
 class Retention(nn.Module):
@@ -263,7 +264,7 @@ class RetentiveVRPEncoder(nn.Module):
         self.embedding_depot = nn.Linear(3, embedding_dim)
         self.embedding_node = nn.Linear(7, embedding_dim)
         self.constraint_encoder = ConstraintStateEncoder(embedding_dim)
-        self.position = SinusoidalPositionEncoding(embedding_dim)
+        self.position = GeoPositionEncoding(embedding_dim)
         layer_num = model_params["encoder_layer_num"]
         gamma = model_params.get("retention_gamma", 0.95)
         self.layers = nn.ModuleList(
@@ -297,7 +298,7 @@ class RetentiveVRPEncoder(nn.Module):
 
         constraint_state = self.constraint_encoder(td).unsqueeze(1)
         x = x + constraint_state
-        x = x + self.position(x.size(1), x.device).unsqueeze(0)
+        x = x + self.position(td["locs"])
         for layer in self.layers:
             x = layer(x)
         return x
@@ -365,7 +366,9 @@ def multi_head_attention(q, k, v, ninf_mask=None):
     input_s = k.size(2)
     score = torch.matmul(q, k.transpose(2, 3)) / math.sqrt(key_dim)
     if ninf_mask is not None:
-        score = score + ninf_mask[:, None, :, :].expand(batch_s, head_num, n, input_s)
+        additive_mask = torch.zeros_like(score)
+        additive_mask = additive_mask.masked_fill(~ninf_mask[:, None, :, :].expand(batch_s, head_num, n, input_s), float("-inf"))
+        score = score + additive_mask
     weights = F.softmax(score, dim=3)
     out = torch.matmul(weights, v)
     return out.transpose(1, 2).contiguous().view(batch_s, n, head_num * key_dim)
