@@ -1,117 +1,113 @@
-# POMO
+# =============================================================================
+# HRM-NCO: Hierarchical Route Memory for Neural Combinatorial Optimization
+# Three contributions:
+#   (1) Retention Encoder with Spatial-Semantic Decay Kernel
+#   (2) Hierarchical Route Memory (HRM) — S_local + S_global
+#   (3) Dynamic Task Memory (DTM) — replaces static prompt conditioning
+# =============================================================================
+
 model_params:
-   'embedding_dim': 128
-   'encoder_layer_num': 6 
-   'qkv_dim': 16 
-   'head_num': 8 
-   'logit_clipping': 10
-   'ff_hidden_dim': 512 
-   'ffd': 'siglu' 
-   'norm_type': 'rms' 
-   'use_sparse': 'topk'   # relu topk entmax15 sparsemax a-entmax False 
-   'p_num': 5
+  # ── Core dimensions ──────────────────────────────────────────────────────
+  'embedding_dim':    128
+  'encoder_layer_num': 6
+  'head_num':          8
+  'qkv_dim':          16     # per-head dim; total = head_num * qkv_dim = 128
+  'ff_hidden_dim':   512     # kept for FeedForward fallback; SwiGLU uses auto sizing
+  'logit_clipping':   10
+  'norm_type':       'rms'   # RMSNorm throughout
+
+  # ── (1) Spatial-Semantic Decay Kernel ────────────────────────────────────
+  # f_θ: small MLP mapping pairwise (coord, feat) → affinity scalar
+  # D[i→j] = exp(-λ_h · f_θ(coord_i, coord_j, feat_i, feat_j))
+  'retnet_log_lambda_init': 0.0   # λ = exp(0) = 1.0 — moderate spatial decay
+  'decay_hidden_dim':       32    # hidden dim of the pairwise affinity MLP
+
+  # ── (2) Hierarchical Route Memory ────────────────────────────────────────
+  # γ = sigmoid(logit), so logit = log(p / (1-p))
+  # γ_local  init → sigmoid(2.197) ≈ 0.90  (fast decay, ~10-step horizon)
+  # γ_global init → sigmoid(4.595) ≈ 0.99  (slow decay, ~100-step horizon)
+  'hrm_gamma_local_logit_init':  2.197
+  'hrm_gamma_global_logit_init': 4.595
+  # Boundary injection weight std (depot signal injected into S_global)
+  'hrm_boundary_std':  0.01
+  # Gate bias init: 0.0 → balanced start (50/50 local/global)
+  # Positive → bias local; Negative → bias global
+  'hrm_gate_bias_init': 0.0
+
+  # ── (3) Dynamic Task Memory ───────────────────────────────────────────────
+  # n_constraints: number of VRP constraint types (C, O, B, L, TW)
+  # W_task_out and W_task_mod inited to zero → conservative start, grows during train
+  'dtm_n_constraints': 5
 
 optimizer_params:
-    'optimizer':
-        'weight_decay': 1e-6
-    'scheduler':
-        'name': 'MultiStepLR'
-        'milestones': [270, 295] # [8001,8051]
-        'gamma': 0.1
+  'optimizer':
+    'lr':           3e-4
+    'weight_decay': 1e-6
+  'scheduler':
+    'name':       'MultiStepLR'
+    'milestones': [270, 295]
+    'gamma':      0.1
 
 trainer_params:
-    'epochs': 300
-    'train_step': 391 
-    'model_save_interval': 1
+  'epochs':              300
+  'train_step':          391
+  'model_save_interval':   1
 
 env:
   generator_params:
-    num_loc: 50 # will been reset in run.py based on args.n_size
-    variant_preset: "all" #
-  test_epoch: [50, 150]  # 25 50 test in these epochs
-  test_interval: 100 #
-  test_episodes: 1000 
-  test_batch_size: 200 # will be reset in env.py, function get_dataloader 
+    num_loc:        50        # reset in run.py based on args.n_size
+    variant_preset: "all"    # all 16 VRP variants
+  test_epoch:     [50, 150]
+  test_interval:  100
+  test_episodes:  1000
+  test_batch_size: 200
   data_dir: '../data/synthetic_data'
-  test_size_idx: [ # will be reset in run.py based on args.n_size ??? why, have been delete
-      0, # 50
-      # 1, # 100
-      # 2, # 200
-      # 3  # 300
+  test_size_idx: [
+    0,   # 50
   ]
   test_problem_idx: [
-   0, # "cvrp"
-   1, # "ovrp",
-   2, # "vrpb"
-   3, # "vrpl"
-   4, # "vrptw"
-   5, # "ovrptw"
-   6, # "ovrpb"
-   7, #  "ovrpl"
-   8, # "vrpbl"
-   9, # "vrpbtw"
-   10, # "vrpltw"
-   11, # "ovrpbl"
-   12, # "ovrpbtw"
-   13, # "ovrpltw"
-   14, # "vrpbltw"
-   15  # "ovrpbltw"
+    0,   # cvrp
+    1,   # ovrp
+    2,   # vrpb
+    3,   # vrpl
+    4,   # vrptw
+    5,   # ovrptw
+    6,   # ovrpb
+    7,   # ovrpl
+    8,   # vrpbl
+    9,   # vrpbtw
+    10,  # vrpltw
+    11,  # ovrpbl
+    12,  # ovrpbtw
+    13,  # ovrpltw
+    14,  # vrpbltw
+    15,  # ovrpbltw
   ]
   test_distribution_idx: [
-  #   0, # "explosion"
-  #   1, # "implosion"
-  #   #2, # "cluster"
-  #  3, # "rotation",
-  #   4, # "linearprojection",
-  #   #5, # "axisprojection",
-  #   6, # "expansion",
-  #   #7, # "compression",
-  #   8 # "grid",
-    9 # "uniform",
+    9,   # uniform
   ]
-##################################################################################################
-metric_label: [
-  '0l/0loss', 
-  '1c/0cost',  
-  '3grad/0g',]
 
-test_metric_label: [ # will be re set in run.py
-    '1g/0gap',
-    '2ag/0aug_gap',
+# =============================================================================
+metric_label: [
+  '0l/0loss',
+  '1c/0cost',
+  '3grad/0g',
 ]
+
+test_metric_label:
+  - '1g/0gap'
+  - '2ag/0aug_gap'
 
 all_test_size: [50, 100, 200, 300]
 
 all_test_problem: [
-  "cvrp",
-  "ovrp",
-  "vrpb",
-  "vrpbl",
-  "vrpbtw",
-  "ovrpb",
-  "ovrpbltw",
-  "ovrpl",
-  "vrptw",
-  "vrpl",
-  "ovrptw",  
-  "vrpbltw",
-  "vrpltw",
-  "ovrpbl",
-  "ovrpbtw",
-  "ovrpltw",
+  "cvrp", "ovrp", "vrpb", "vrpbl", "vrpbtw",
+  "ovrpb", "ovrpbltw", "ovrpl", "vrptw", "vrpl",
+  "ovrptw", "vrpbltw", "vrpltw", "ovrpbl", "ovrpbtw", "ovrpltw",
 ]
 
-all_test_distribution : [
-  "explosion",
-  "implosion",
-  "cluster",
-  "rotation",
-  "linearprojection",
-  "axisprojection",
-  "expansion",
-  "compression",
-  "grid",
-  "uniform"
-
+all_test_distribution: [
+  "explosion", "implosion", "cluster", "rotation",
+  "linearprojection", "axisprojection", "expansion",
+  "compression", "grid", "uniform",
 ]
-

@@ -1,0 +1,130 @@
+2026-05-30 21:26:08,503 {
+    "batch_size": 256,
+    "n_size": 50,
+    "num_workers": 0,
+    "seed": 7,
+    "resume": false,
+    "epoch": null,
+    "path_id": null,
+    "lr": 0.0003,
+    "wandb": "",
+    "test": false,
+    "test_lib": false,
+    "skip": false,
+    "test_only": false,
+    "start_time": "2026-0530-2126",
+    "model_params": {
+        "embedding_dim": 128,
+        "encoder_layer_num": 6,
+        "qkv_dim": 16,
+        "head_num": 8,
+        "logit_clipping": 10,
+        "ff_hidden_dim": 512,
+        "ffd": "siglu",
+        "norm_type": "rms",
+        "p_num": 5,
+        "retnet_log_lambda_init": 0.0,
+        "hrm_gamma_local_logit_init": 2.197,
+        "hrm_gamma_global_logit_init": 4.595,
+        "hrm_boundary_std": 0.01,
+        "hrm_gate_bias_init": 0.0,
+        "sqrt_embedding_dim": 11.313708498984761
+    },
+    "optimizer_params": {
+        "optimizer": {
+            "weight_decay": 1e-06,
+            "lr": 0.0003
+        },
+        "scheduler": {
+            "name": "MultiStepLR",
+            "milestones": [
+                270,
+                295
+            ],
+            "gamma": 0.1
+        }
+    },
+    "trainer_params": {
+        "epochs": 300,
+        "train_step": 391,
+        "model_save_interval": 1,
+        "train_batch_size": 256,
+        "model_load": {
+            "enable": false
+        }
+    },
+    "env": {
+        "generator_params": {
+            "num_loc": 50,
+            "variant_preset": "all"
+        },
+        "test_epoch": [
+            50,
+            150
+        ],
+        "test_interval": 100,
+        "test_episodes": 1000,
+        "test_batch_size": 200,
+        "data_dir": "../data/synthetic_data",
+        "test_size_idx": [
+            0
+        ],
+        "test_problem_idx": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+        ],
+        "test_distribution_idx": [
+            9
+        ],
+        "test_size": [
+            50
+        ],
+        "test_problem": [
+            "cvrp",
+            "ovrp",
+            "vrpb",
+            "vrpbl",
+            "vrpbtw",
+            "ovrpb",
+            "ovrpbltw",
+            "ovrpl",
+            "vrptw",
+            "vrpl",
+            "ovrptw",
+            "vrpbltw",
+            "vrpltw",
+            "ovrpbl",
+            "ovrpbtw",
+            "ovrpltw"
+        ],
+        "test_distribution": [
+            "uniform"
+        ]
+    },
+    "world_size": 1,
+    "rank": 0,
+    "local_rank": 0,
+    "ddp": false,
+    "result_dir": "result\\2026-0530-2126",
+    "log_file": "result\\2026-0530-2126\\log_0.txt",
+    "mute": false
+}
+2026-05-30 21:26:08,628 Total number of parameters: 3843616
+2026-05-30 21:26:08,628 Total number of buffer elements: 0
+2026-05-30 21:26:08,643 Using variant generation preset all
+2026-05-30 21:26:09,027 finish copy_all_src.
+2026-05-30 21:26:09,027 =================================================================
