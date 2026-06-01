@@ -1,55 +1,73 @@
-# POMO
+# RetNet-NCO — based on CADA, decoder replaced with Hierarchical Route Memory
 model_params:
+   # --- Shared ---
    'embedding_dim': 128
-   'encoder_layer_num': 6 
-   'qkv_dim': 16 
-   'head_num': 8 
+   'encoder_layer_num': 6
+   'qkv_dim': 16
+   'head_num': 8
    'logit_clipping': 10
-   'ff_hidden_dim': 512 
-   'ffd': 'siglu' 
-   'norm_type': 'rms' 
-   'use_sparse': 'topk'   # relu topk entmax15 sparsemax a-entmax False 
-   'p_num': 5
+   'ff_hidden_dim': 512
+   'ffd': 'siglu'          # 'siglu' | 'ffd'
+   'norm_type': 'rms'      # 'rms' | 'layer' | 'instance'
+   'p_num': 5              # number of prompt tokens (PromptNet)
+
+   # --- RetNet Encoder ---
+   # log_lambda init: controls initial spatial decay steepness
+   # log_lambda=0.0  → lambda=1.0 → moderate decay
+   # log_lambda=-1.0 → lambda=0.37 → gentler decay (larger effective radius)
+   # log_lambda=1.0  → lambda=2.72 → sharper decay (more local)
+   'retnet_log_lambda_init': 0.0
+
+   # --- Hierarchical Route Memory (Decoder) ---
+   # gamma_local: decay per step within a sub-tour (sigmoid of this logit)
+   # 2.197 → sigmoid → 0.9   (fast decay, ~10 step memory horizon)
+   # 4.595 → sigmoid → 0.99  (slow decay, ~100 step horizon)
+   'hrm_gamma_local_logit_init': 2.197     # sigmoid → ~0.90
+   'hrm_gamma_global_logit_init': 4.595    # sigmoid → ~0.99
+
+   # boundary injection weight init std
+   'hrm_boundary_std': 0.01
+
+   # gate weight init: 0.0 = balanced start (gate ≈ 0.5)
+   # positive → bias toward local; negative → bias toward global
+   'hrm_gate_bias_init': 0.0
 
 optimizer_params:
     'optimizer':
         'weight_decay': 1e-6
     'scheduler':
         'name': 'MultiStepLR'
-        'milestones': [270, 295] # [8001,8051]
+        'milestones': [270, 295]
         'gamma': 0.1
 
 trainer_params:
     'epochs': 300
-    'train_step': 391 
+    'train_step': 391
     'model_save_interval': 1
 
 env:
   generator_params:
-    num_loc: 50 # will been reset in run.py based on args.n_size
-    variant_preset: "all" #
-  test_epoch: [50, 150]  # 25 50 test in these epochs
-  test_interval: 100 #
-  test_episodes: 1000 
-  test_batch_size: 200 # will be reset in env.py, function get_dataloader 
+    num_loc: 50             # reset in run.py based on args.n_size
+    variant_preset: "all"
+  test_epoch: [50, 150]
+  test_interval: 100
+  test_episodes: 1000
+  test_batch_size: 200      # reset in env.py
   data_dir: '../data/synthetic_data'
-  test_size_idx: [ # will be reset in run.py based on args.n_size ??? why, have been delete
-      0, # 50
-      # 1, # 100
-      # 2, # 200
-      # 3  # 300
+  test_size_idx: [
+      0,  # 50
   ]
   test_problem_idx: [
-   0, # "cvrp"
-   1, # "ovrp",
-   2, # "vrpb"
-   3, # "vrpl"
-   4, # "vrptw"
-   5, # "ovrptw"
-   6, # "ovrpb"
-   7, #  "ovrpl"
-   8, # "vrpbl"
-   9, # "vrpbtw"
+   0,  # "cvrp"
+   1,  # "ovrp"
+   2,  # "vrpb"
+   3,  # "vrpl"
+   4,  # "vrptw"
+   5,  # "ovrptw"
+   6,  # "ovrpb"
+   7,  # "ovrpl"
+   8,  # "vrpbl"
+   9,  # "vrpbtw"
    10, # "vrpltw"
    11, # "ovrpbl"
    12, # "ovrpbtw"
@@ -58,27 +76,18 @@ env:
    15  # "ovrpbltw"
   ]
   test_distribution_idx: [
-  #   0, # "explosion"
-  #   1, # "implosion"
-  #   #2, # "cluster"
-  #  3, # "rotation",
-  #   4, # "linearprojection",
-  #   #5, # "axisprojection",
-  #   6, # "expansion",
-  #   #7, # "compression",
-  #   8 # "grid",
-    9 # "uniform",
+    9   # "uniform"
   ]
+
 ##################################################################################################
 metric_label: [
-  '0l/0loss', 
-  '1c/0cost',  
+  '0l/0loss',
+  '1c/0cost',
   '3grad/0g',]
 
-test_metric_label: [ # will be re set in run.py
-    '1g/0gap',
-    '2ag/0aug_gap',
-]
+test_metric_label:   # reset in run.py
+    - '1g/0gap'
+    - '2ag/0aug_gap'
 
 all_test_size: [50, 100, 200, 300]
 
@@ -93,7 +102,7 @@ all_test_problem: [
   "ovrpl",
   "vrptw",
   "vrpl",
-  "ovrptw",  
+  "ovrptw",
   "vrpbltw",
   "vrpltw",
   "ovrpbl",
@@ -101,7 +110,7 @@ all_test_problem: [
   "ovrpltw",
 ]
 
-all_test_distribution : [
+all_test_distribution: [
   "explosion",
   "implosion",
   "cluster",
@@ -111,7 +120,5 @@ all_test_distribution : [
   "expansion",
   "compression",
   "grid",
-  "uniform"
-
+  "uniform",
 ]
-
